@@ -18,17 +18,17 @@ export class RobotController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.robotService.findOne(+id);
+  findOne(@Param('id') robot_id: string) {
+    return this.robotService.findOne(robot_id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateRobotDto: UpdateRobotDto) {
-    return this.robotService.update(+id, updateRobotDto);
+  @Patch()
+  update(@Body() updateRobotDto: UpdateRobotDto) {
+    return this.robotService.update(updateRobotDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.robotService.remove(+id);
+  remove(@Param('id') robot_id: string) {
+    return this.robotService.remove(robot_id);
   }
 }
