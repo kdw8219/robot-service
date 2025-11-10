@@ -11,7 +11,7 @@ services:
     environment:
       #- ROBOT_SERVICE_HOST=host.docker.internal
       #- ROBOT_SERVICE_PORT=8080
-      - POSTGRES_HOST=${DB_HOST}
+      - POSTGRES_HOST=postgres
       - POSTGRES_PORT=${DB_PORT}
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
