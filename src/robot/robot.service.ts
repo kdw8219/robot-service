@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { CreateRobotDto } from './dto/create-robot.dto';
 import { CreateRobotResponseDto } from './dto/create-robot-response.dto';
 import { UpdateRobotDto } from './dto/update-robot.dto';
+import { GetRobotsDto } from './dto/get-all-robots.dto';
+import { GetRobotsResponseDto } from './dto/get-all-robots-response.dto';
 import { Robot } from './entities/robot.entity';
 import { Repository } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm"
@@ -37,8 +39,41 @@ export class RobotService {
     return createRobotResponse;
   }
 
-  findAll() {
-    return `This action returns all robot`;
+  async findAll(pages:GetRobotsDto) : Promise<GetRobotsResponseDto> {
+
+    let robots:Robot[] | null = null;
+    let getRobotResponse:GetRobotsResponseDto = new GetRobotsResponseDto();
+    let currentTotalCount:Number = 0;
+    let totalCount:Number = 0;
+    
+    try {
+      let skip:number = (pages.page - 1) * pages.page_per;
+      let pagePer:number = pages.page_per;
+      const [[robots, currentTotalCount], totalCount ] = await Promise.all([
+        this.comutil.withTimeout(this.robotRepo.findAndCount(
+        {
+          skip,
+          take: pagePer,
+          order: { created_at: 'ASC' },
+        }
+      ), 1000),
+      this.comutil.withTimeout(this.robotRepo.count(), 1000)
+    ]);
+
+      getRobotResponse.robots = robots;
+      getRobotResponse.current_totalCount = currentTotalCount;
+      getRobotResponse.totalCount = totalCount;
+      getRobotResponse.result = `Get Robot Success`;
+    }
+    catch (err) {
+      if(err instanceof TimeoutError) {
+        getRobotResponse.result = `Get Robot fail, Internal Error occurred`;
+      }
+      else {
+        getRobotResponse.result = `Get Robot fail, check datas`;
+      }
+    }
+    return getRobotResponse;
   }
 
   findOne(robot_id: string) {
