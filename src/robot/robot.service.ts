@@ -84,7 +84,27 @@ export class RobotService {
     return `This action updates a robot`;
   }
 
-  remove(robot_id: string) {
-    return `This action removes a #${robot_id} robot`;
+  async remove(robot_id: string) {
+    let getRobotResponse:GetRobotsResponseDto = new GetRobotsResponseDto();
+    
+    try {
+      let res = await this.comutil.withTimeout(this.robotRepo.delete({robot_id:robot_id}), 1000);
+      if(res.affected != null && res.affected > 0) {
+        getRobotResponse.result = `Delete Robot Success`;
+      }
+      else {
+        getRobotResponse.result = `No Robots`;
+      }
+        
+    }
+    catch (err) {
+      if(err instanceof TimeoutError) {
+        getRobotResponse.result = `Delete Robot fail, Internal Error occurred`;
+      }
+      else {
+        getRobotResponse.result = `Delete Robot fail, check datas`;
+      }
+    }
+    return getRobotResponse;
   }
 }
