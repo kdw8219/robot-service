@@ -39,10 +39,10 @@ export class RobotController {
     let getRobots = await this.robotService.findAll(pages);
 
     if( getRobots.result == `Get Robot Success` ) {
-      this.logger.info(`success robot registering`);
+      this.logger.info(`success robot getting`);
     }
     else {
-      this.logger.info(`failed robot registering`);
+      this.logger.info(`failed robot getting`);
     }
     
     return getRobots;
@@ -53,9 +53,12 @@ export class RobotController {
     return this.robotService.findOne(robot_id);
   }
 
-  @Patch()
-  update(@Body() updateRobotDto: UpdateRobotDto) {
-    return this.robotService.update(updateRobotDto);
+  @Patch(':id')
+  async update(@Param('id') robot_id:string, @Body() updateRobotDto: UpdateRobotDto) : Promise<CreateRobotResponseDto> {
+    console.log('received?')
+    this.logger.info(`start to patch robots `)
+
+    return await this.robotService.update(updateRobotDto, robot_id);
   }
 
   @Delete(':id')
