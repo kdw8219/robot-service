@@ -41,14 +41,12 @@ export class RobotService {
 
   async findAll(pages:GetRobotsDto) : Promise<GetRobotsResponseDto> {
 
-    let robots:Robot[] | null = null;
     let getRobotResponse:GetRobotsResponseDto = new GetRobotsResponseDto();
-    let currentTotalCount:Number = 0;
-    let totalCount:Number = 0;
     
     try {
       let skip:number = (pages.page - 1) * pages.page_per;
       let pagePer:number = pages.page_per;
+
       const [[robots, currentTotalCount], totalCount ] = await Promise.all([
         this.comutil.withTimeout(this.robotRepo.findAndCount(
         {
@@ -80,8 +78,28 @@ export class RobotService {
     return `This action returns a #${robot_id} robot`;
   }
 
-  update(updateRobotDto: UpdateRobotDto) {
-    return `This action updates a robot`;
+  async update(updateRobotDto: UpdateRobotDto, robot_id:string) {
+    let updateRobotResponse:CreateRobotResponseDto = new CreateRobotResponseDto();
+    let updateData = updateRobotDto;
+    try {
+      let res = await this.comutil.withTimeout(this.robotRepo.update({ robot_id }, updateData), 1000);
+      if(res.affected != null && res.affected > 0) {
+        updateRobotResponse.result = `Update Robot Success`;
+      }
+      else {
+        updateRobotResponse.result = `No Robots`;
+      }
+        
+    }
+    catch (err) {
+      if(err instanceof TimeoutError) {
+        updateRobotResponse.result = `Update Robot fail, Internal Error occurred`;
+      }
+      else {
+        updateRobotResponse.result = `Update Robot fail, check datas`;
+      }
+    }
+    return updateRobotResponse;
   }
 
   async remove(robot_id: string) {
