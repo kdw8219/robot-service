@@ -7,6 +7,8 @@ import { CreateRobotResponseDto } from './dto/create-robot-response.dto';
 import { WINSTON_MODULE_PROVIDER } from "nest-winston";
 import { Logger } from 'winston';
 import { GetRobotsResponseDto } from './dto/get-all-robots-response.dto';
+import { GetRobotLoginDto } from './dto/get-robot-login.dto';
+import * as bcrypt from "bcrypt"
 
 @Controller('api/robots')
 export class RobotController {
@@ -18,7 +20,12 @@ export class RobotController {
   @Post()
   async create(@Body() createRobotDto: CreateRobotDto) : Promise<CreateRobotResponseDto> {
     this.logger.info(`start robot registering`)
-     console.log('received??!')
+    console.log('received??!')
+
+    const hashed = await bcrypt.hash(createRobotDto.robot_secret, 10)
+
+    createRobotDto.robot_secret = hashed;
+
     let created = await this.robotService.create(createRobotDto);
     if( created.result == `Robot Creation is success` ) {
       this.logger.info(`success robot registering`);
@@ -48,9 +55,21 @@ export class RobotController {
     return getRobots;
   }
 
-  @Get(':id')
-  findOne(@Param('id') robot_id: string) {
-    return this.robotService.findOne(robot_id);
+  @Post('login')
+  async login(@Query() login: GetRobotLoginDto) : Promise<GetRobotsResponseDto> {
+    console.log('login received?')
+    this.logger.info(`start to get one robot`)
+
+    let robot = await this.robotService.login(login)
+
+    if( robot.result == `Get Robot Success` ) {
+      this.logger.info(`success robot getting`);
+    }
+    else {
+      this.logger.info(`failed robot getting`);
+    }
+    
+    return robot;
   }
 
   @Patch(':id')

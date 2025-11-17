@@ -1,9 +1,14 @@
-import {IsString, IsNotEmpty} from 'class-validator'
+import {IsString, IsNotEmpty, MinLength} from 'class-validator'
 
 export class CreateRobotDto {
     @IsString()
     @IsNotEmpty()
     robot_id:string;
+
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(8)
+    robot_secret:string;
 
     @IsString()
     @IsNotEmpty()
