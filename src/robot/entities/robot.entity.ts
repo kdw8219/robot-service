@@ -10,6 +10,9 @@ export class Robot {
     @Column({unique:true})
     robot_id:string
 
+    @Column({nullable: false})
+    robot_secret:string
+
     @Column()
     model:string
 

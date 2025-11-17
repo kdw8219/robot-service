@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, GatewayTimeoutException } from '@nestjs/common';
 import { CreateRobotDto } from './dto/create-robot.dto';
 import { CreateRobotResponseDto } from './dto/create-robot-response.dto';
 import { UpdateRobotDto } from './dto/update-robot.dto';
@@ -8,9 +8,8 @@ import { Robot } from './entities/robot.entity';
 import { Repository } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm"
 import { ComutilService } from 'src/comutil/comutil.service';
-import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
-import e from 'express';
-import { TimeoutError } from 'rxjs';
+import { GetRobotLoginDto } from './dto/get-robot-login.dto';
+import * as bcrypt from "bcrypt"
 
 @Injectable()
 export class RobotService {
@@ -29,12 +28,11 @@ export class RobotService {
       createRobotResponse.result = `Robot Creation is success`;
     }
     catch (err) {
-      if(err instanceof TimeoutError) {
-        createRobotResponse.result = `robot creation fail, Internal Error occurred`;
+      if (err.code === 'ETIMEDOUT') {
+        throw new GatewayTimeoutException('Database timeout');
+      
       }
-      else {
-        createRobotResponse.result = `robot creation fail, check datas`;
-      }
+      throw err;
     }
     return createRobotResponse;
   }
@@ -64,18 +62,36 @@ export class RobotService {
       getRobotResponse.result = `Get Robot Success`;
     }
     catch (err) {
-      if(err instanceof TimeoutError) {
-        getRobotResponse.result = `Get Robot fail, Internal Error occurred`;
+      if (err.code === 'ETIMEDOUT') {
+        throw new GatewayTimeoutException('Database timeout');
+      
       }
-      else {
-        getRobotResponse.result = `Get Robot fail, check datas`;
-      }
+      throw err;
     }
     return getRobotResponse;
   }
 
-  findOne(robot_id: string) {
-    return `This action returns a #${robot_id} robot`;
+  async login(login:GetRobotLoginDto) : Promise<GetRobotsResponseDto> {
+    let getRobotResponse:GetRobotsResponseDto = new GetRobotsResponseDto();
+
+    try {
+      const robot = await this.comutil.withTimeout(this.robotRepo.findOne({where: { robot_id:login.robot_id },}), 1000);
+      if(!robot) throw new NotFoundException('robot not found');
+
+      const match = await bcrypt.compare(login.robot_secret, robot.robot_secret);
+      if(!match) throw new NotFoundException('Secret mismatch');
+
+      getRobotResponse.result = `Exist`;
+    }
+    catch (err) {
+      if (err.code === 'ETIMEDOUT') {
+        throw new GatewayTimeoutException('Database timeout');
+      
+      }
+      throw err;
+    }
+    return getRobotResponse;
+
   }
 
   async update(updateRobotDto: UpdateRobotDto, robot_id:string) {
@@ -87,17 +103,16 @@ export class RobotService {
         updateRobotResponse.result = `Update Robot Success`;
       }
       else {
-        updateRobotResponse.result = `No Robots`;
+        throw new NotFoundException("Update fail... No robot existed");
       }
         
     }
     catch (err) {
-      if(err instanceof TimeoutError) {
-        updateRobotResponse.result = `Update Robot fail, Internal Error occurred`;
+      if (err.code === 'ETIMEDOUT') {
+        throw new GatewayTimeoutException('Database timeout');
+      
       }
-      else {
-        updateRobotResponse.result = `Update Robot fail, check datas`;
-      }
+      throw err;
     }
     return updateRobotResponse;
   }
@@ -111,17 +126,16 @@ export class RobotService {
         getRobotResponse.result = `Delete Robot Success`;
       }
       else {
-        getRobotResponse.result = `No Robots`;
+        throw new NotFoundException("Update fail... No robot existed");
       }
         
     }
     catch (err) {
-      if(err instanceof TimeoutError) {
-        getRobotResponse.result = `Delete Robot fail, Internal Error occurred`;
+      if (err.code === 'ETIMEDOUT') {
+        throw new GatewayTimeoutException('Database timeout');
+      
       }
-      else {
-        getRobotResponse.result = `Delete Robot fail, check datas`;
-      }
+      throw err;
     }
     return getRobotResponse;
   }
