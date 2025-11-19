@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_robot_id ON robots(robot_id);

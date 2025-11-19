@@ -71,11 +71,35 @@ export class RobotService {
     return getRobotResponse;
   }
 
+  async findOne(robot_id:string) : Promise<GetRobotsResponseDto> {
+
+    let getRobotResponse:GetRobotsResponseDto = new GetRobotsResponseDto();
+    try {
+      let robot = await this.comutil.withTimeout(this.robotRepo.findOneBy(
+        {
+          robot_id:robot_id
+        }
+      ), 1000)
+
+      if(!robot) throw new NotFoundException('robot not found'); 
+
+      getRobotResponse.result = `Get Robot Success`;
+    }
+    catch (err) {
+      if (err.code === 'ETIMEDOUT') {
+        throw new GatewayTimeoutException('Database timeout');
+      
+      }
+      throw err;
+    }
+    return getRobotResponse;
+  }
+
   async login(login:GetRobotLoginDto) : Promise<GetRobotsResponseDto> {
     let getRobotResponse:GetRobotsResponseDto = new GetRobotsResponseDto();
 
     try {
-      const robot = await this.comutil.withTimeout(this.robotRepo.findOne({where: { robot_id:login.robot_id },}), 1000);
+      const robot = await this.comutil.withTimeout(this.robotRepo.findOne({where: { robot_id:login.robot_id }}), 1000);
       if(!robot) throw new NotFoundException('robot not found');
 
       const match = await bcrypt.compare(login.robot_secret, robot.robot_secret);
