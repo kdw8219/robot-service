@@ -55,14 +55,31 @@ export class RobotController {
     return getRobots;
   }
 
+  @Get(':id')
+  async findOne(@Param('id') robot_id:string) : Promise<GetRobotsResponseDto> {
+
+    console.log('received?')
+    this.logger.info(`start to get one robot`)
+    
+    let getRobot = await this.robotService.findOne(robot_id);
+
+    if( getRobot.result == `Get Robot Success` ) {
+      this.logger.info(`success robot getting`);
+    }
+    else {
+      this.logger.info(`failed robot getting`);
+    }
+    
+    return getRobot;
+  }
+
   @Post('login')
-  async login(@Query() login: GetRobotLoginDto) : Promise<GetRobotsResponseDto> {
-    console.log('login received?')
+  async login(@Body() login: GetRobotLoginDto) : Promise<GetRobotsResponseDto> {
     this.logger.info(`start to get one robot`)
 
     let robot = await this.robotService.login(login)
 
-    if( robot.result == `Get Robot Success` ) {
+    if( robot.result == `Exist` ) {
       this.logger.info(`success robot getting`);
     }
     else {
