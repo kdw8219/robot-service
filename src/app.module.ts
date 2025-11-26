@@ -10,7 +10,7 @@ import * as winston from 'winston';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({isGlobal: true}),
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       useFactory: (configService) => ({
         type: 'postgres',
@@ -47,9 +47,9 @@ import * as winston from 'winston';
     }),
 
     RobotModule,
-    
-   ],
+
+  ],
   controllers: [AppController],
   providers: [AppService, ComutilService],
 })
-export class AppModule {}
+export class AppModule { }

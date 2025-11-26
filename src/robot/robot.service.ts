@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, GatewayTimeoutException } from '@nestjs/common';
+import { Injectable, NotFoundException, GatewayTimeoutException, Inject } from '@nestjs/common';
 import { CreateRobotDto } from './dto/create-robot.dto';
 import { CreateRobotResponseDto } from './dto/create-robot-response.dto';
 import { UpdateRobotDto } from './dto/update-robot.dto';
@@ -10,6 +10,8 @@ import { InjectRepository } from "@nestjs/typeorm"
 import { ComutilService } from 'src/comutil/comutil.service';
 import { GetRobotLoginDto } from './dto/get-robot-login.dto';
 import * as bcrypt from "bcrypt"
+import { WINSTON_MODULE_PROVIDER } from "nest-winston";
+import { Logger } from 'winston';
 
 @Injectable()
 export class RobotService {
@@ -17,11 +19,12 @@ export class RobotService {
     @InjectRepository(Robot)
     private readonly robotRepo: Repository<Robot>,
     private comutil: ComutilService,
-  ) {}
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+  ) { }
 
-  async create(createRobotDto: CreateRobotDto) : Promise<CreateRobotResponseDto> {
-    let robot:Robot | null = null;
-    let createRobotResponse:CreateRobotResponseDto = new CreateRobotResponseDto();
+  async create(createRobotDto: CreateRobotDto): Promise<CreateRobotResponseDto> {
+    let robot: Robot | null = null;
+    let createRobotResponse: CreateRobotResponseDto = new CreateRobotResponseDto();
     createRobotResponse.robot_id = createRobotDto.robot_id;
     try {
       robot = await this.comutil.withTimeout(this.robotRepo.save(createRobotDto), 1000);
@@ -30,31 +33,31 @@ export class RobotService {
     catch (err) {
       if (err.code === 'ETIMEDOUT') {
         throw new GatewayTimeoutException('Database timeout');
-      
+
       }
       throw err;
     }
     return createRobotResponse;
   }
 
-  async findAll(pages:GetRobotsDto) : Promise<GetRobotsResponseDto> {
+  async findAll(pages: GetRobotsDto): Promise<GetRobotsResponseDto> {
 
-    let getRobotResponse:GetRobotsResponseDto = new GetRobotsResponseDto();
-    
+    let getRobotResponse: GetRobotsResponseDto = new GetRobotsResponseDto();
+
     try {
-      let skip:number = (pages.page - 1) * pages.page_per;
-      let pagePer:number = pages.page_per;
+      let skip: number = (pages.page - 1) * pages.page_per;
+      let pagePer: number = pages.page_per;
 
-      const [[robots, currentTotalCount], totalCount ] = await Promise.all([
+      const [[robots, currentTotalCount], totalCount] = await Promise.all([
         this.comutil.withTimeout(this.robotRepo.findAndCount(
-        {
-          skip,
-          take: pagePer,
-          order: { created_at: 'ASC' },
-        }
-      ), 1000),
-      this.comutil.withTimeout(this.robotRepo.count(), 1000)
-    ]);
+          {
+            skip,
+            take: pagePer,
+            order: { created_at: 'ASC' },
+          }
+        ), 1000),
+        this.comutil.withTimeout(this.robotRepo.count(), 1000)
+      ]);
 
       getRobotResponse.robots = robots;
       getRobotResponse.current_totalCount = currentTotalCount;
@@ -64,53 +67,62 @@ export class RobotService {
     catch (err) {
       if (err.code === 'ETIMEDOUT') {
         throw new GatewayTimeoutException('Database timeout');
-      
+
       }
       throw err;
     }
     return getRobotResponse;
   }
 
-  async findOne(robot_id:string) : Promise<GetRobotsResponseDto> {
+  async findOne(robot_id: string): Promise<GetRobotsResponseDto> {
 
-    let getRobotResponse:GetRobotsResponseDto = new GetRobotsResponseDto();
+    let getRobotResponse: GetRobotsResponseDto = new GetRobotsResponseDto();
     try {
       let robot = await this.comutil.withTimeout(this.robotRepo.findOneBy(
         {
-          robot_id:robot_id
+          robot_id: robot_id
         }
       ), 1000)
 
-      if(!robot) throw new NotFoundException('robot not found'); 
+      if (!robot) throw new NotFoundException('robot not found');
 
       getRobotResponse.result = `Get Robot Success`;
     }
     catch (err) {
       if (err.code === 'ETIMEDOUT') {
         throw new GatewayTimeoutException('Database timeout');
-      
+
       }
       throw err;
     }
     return getRobotResponse;
   }
 
-  async login(login:GetRobotLoginDto) : Promise<GetRobotsResponseDto> {
-    let getRobotResponse:GetRobotsResponseDto = new GetRobotsResponseDto();
+  async login(login: GetRobotLoginDto): Promise<GetRobotsResponseDto> {
+    let getRobotResponse: GetRobotsResponseDto = new GetRobotsResponseDto();
 
     try {
-      const robot = await this.comutil.withTimeout(this.robotRepo.findOne({where: { robot_id:login.robot_id }}), 1000);
-      if(!robot) throw new NotFoundException('robot not found');
+      const robot = await this.comutil.withTimeout(this.robotRepo.findOne({ where: { robot_id: login.robot_id } }), 1000);
+      if (!robot) {
+        this.logger.info('robot not found');
+        throw new NotFoundException('robot not found');
+      }
 
       const match = await bcrypt.compare(login.robot_secret, robot.robot_secret);
-      if(!match) throw new NotFoundException('Secret mismatch');
-
+      if (!match) {
+        this.logger.info('robot secret not matched');
+        throw new NotFoundException('Secret mismatch');
+      }
       getRobotResponse.result = `Exist`;
     }
     catch (err) {
       if (err.code === 'ETIMEDOUT') {
+        this.logger.info('robot finding timeouts');
         throw new GatewayTimeoutException('Database timeout');
-      
+
+      }
+      else {
+        this.logger.info('another type of error {}', err.code);
       }
       throw err;
     }
@@ -118,23 +130,23 @@ export class RobotService {
 
   }
 
-  async update(updateRobotDto: UpdateRobotDto, robot_id:string) {
-    let updateRobotResponse:CreateRobotResponseDto = new CreateRobotResponseDto();
+  async update(updateRobotDto: UpdateRobotDto, robot_id: string) {
+    let updateRobotResponse: CreateRobotResponseDto = new CreateRobotResponseDto();
     let updateData = updateRobotDto;
     try {
       let res = await this.comutil.withTimeout(this.robotRepo.update({ robot_id }, updateData), 1000);
-      if(res.affected != null && res.affected > 0) {
+      if (res.affected != null && res.affected > 0) {
         updateRobotResponse.result = `Update Robot Success`;
       }
       else {
         throw new NotFoundException("Update fail... No robot existed");
       }
-        
+
     }
     catch (err) {
       if (err.code === 'ETIMEDOUT') {
         throw new GatewayTimeoutException('Database timeout');
-      
+
       }
       throw err;
     }
@@ -142,22 +154,22 @@ export class RobotService {
   }
 
   async remove(robot_id: string) {
-    let getRobotResponse:GetRobotsResponseDto = new GetRobotsResponseDto();
-    
+    let getRobotResponse: GetRobotsResponseDto = new GetRobotsResponseDto();
+
     try {
-      let res = await this.comutil.withTimeout(this.robotRepo.delete({robot_id:robot_id}), 1000);
-      if(res.affected != null && res.affected > 0) {
+      let res = await this.comutil.withTimeout(this.robotRepo.delete({ robot_id: robot_id }), 1000);
+      if (res.affected != null && res.affected > 0) {
         getRobotResponse.result = `Delete Robot Success`;
       }
       else {
         throw new NotFoundException("Update fail... No robot existed");
       }
-        
+
     }
     catch (err) {
       if (err.code === 'ETIMEDOUT') {
         throw new GatewayTimeoutException('Database timeout');
-      
+
       }
       throw err;
     }
